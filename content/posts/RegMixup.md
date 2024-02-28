@@ -1,3 +1,9 @@
++++
+title = 'RobustAI_RegMixup'
+date = 2024-01-24T17:09:36+01:00
+draft = false
++++
+
 # RegMixup : Regularizer for robust AI
 ## Improve accuracy and Out-of-Distribution Robustness
 
