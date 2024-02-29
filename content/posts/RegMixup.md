@@ -32,12 +32,36 @@ In order to understand the paper, we need to understand what is Empirical and Vi
 
 Empirical Risk Minimization is an inference principle which consists in finding the model $\hat{f}$ that minimizes the empirical risk $R_{emp}(\hat{f})$ on the training set. The empirical risk is defined as the average loss over the training set :
 $$
-ER(\hat{f}) = \frac{1}{n} \sum_{i=1}^{n} L(\hat{f}(x_i), y_i)
+R_{emp}(\hat{f}) = \frac{1}{n} \sum_{i=1}^{n} L(\hat{f}(x_i), y_i)
 $$
+where $L$ is the loss function, $x_i$ is the input, $y_i$ is the label and $n$ is the number of samples in the training set. However, ERM contains a very strong assumption which is that $\hat{f} \approx f$ where $f$ is the true (and unknown) distribution for all points of the dataset. Thereby, if the testing set distribution different even slighly from the training set one, ERM is unable to explain or provide generalization. Vicinal Risk is a way to relax this assumption.
 
 #### 1.2. Vicinal Risk Minimization (VRM)
 
+Vicinal Risk Minimization (VRM) is a generalization of ERM. Instead of having a single distribution estimate $\hat{f}$, VRM uses a set of distributions $\hat{f}_{x_i, y_i}$ for each training sample $(x_i, y_i)$. The goal is to minimize the average loss over the training set, but with respect to the vicinal distribution of each sample.
+
+$$
+R_{vrm}(\hat{f}) = \frac{1}{n} \sum_{i=1}^{n} L(\hat{f}_{x_i, y_i}(x_i), y_i)
+$$
+
+Consequently, each training point has its own distribution estimate. This is a way to relax the strong assumption of ERM explained above. 
+
 #### 1.3. Mixup
+
+Mixup is a data augmentation technique that generates new samples by mixing pairs of training samples. 
+
+First, we take two samples $(x_i, y_i)$ and $(x_j, y_j)$ from the training set. Then, we generate a new sample $(\tilde{x}, \tilde{y})$ by taking a linear combination of the two samples with a mixup coefficient $\lambda$ :
+
+$$
+\tilde{x} = \lambda x_i + (1 - \lambda) x_j \\
+\tilde{y} = \lambda y_i + (1 - \lambda) y_j
+$$
+
+We can then define the vicinal distribution of the mixed sample $(\tilde{x}, \tilde{y})$ as :
+
+$$
+P_{x_i, y_i} = \mathbb{E}_\lambda[(\delta_{\tilde{x}_i}(x), \delta_{\tilde{y}_i}(y))]
+$$
 
 ### 2. RegMixup in theory
 
