@@ -63,6 +63,9 @@ $$
 P_{x_i, y_i} = \mathbb{E}_\lambda[(\delta_{\tilde{x}_i}(x), \delta_{\tilde{y}_i}(y))]
 $$
 
+Mixup has pros and cons :
+"list pros and cons"
+
 ### 2. RegMixup in theory
 
 ### 3. RegMixup in practice (implementation)
