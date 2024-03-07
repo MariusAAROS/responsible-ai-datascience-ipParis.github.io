@@ -48,9 +48,11 @@ Consequently, each training point has its own distribution estimate. This is a w
 
 #### 1.3. Mixup
 
-Mixup is a data augmentation technique that generates new samples by mixing pairs of training samples. 
+Mixup is a data augmentation technique that generates new samples by mixing pairs of training samples. By doing so, mixup regularizes models to favor simple linear behavior in-between training examples. Experimentally speaking, Mixup has been shown to improve the generalization of deep neural networks, increase their robustness to adversarial attacks, reduce the memorization of corrupt labels as well as stabilize the training of generative adversarial networks.
 
-First, we take two samples $(x_i, y_i)$ and $(x_j, y_j)$ from the training set. Then, we generate a new sample $(\tilde{x}, \tilde{y})$ by taking a linear combination of the two samples with a mixup coefficient $\lambda$ :
+In essence, Mixup can be though as a learning objective designed for robustness and accountability of the model. Now, let's see how Mixup works.
+
+First, we take two samples $(x_i, y_i)$ and $(x_j, y_j)$ from the training set. Then, we generate a new sample $(\tilde{x}, \tilde{y})$ by taking a convex combination of the two samples with a mixup coefficient $\lambda \sim \text{Beta}(\alpha, \alpha)$ :
 
 $$
 \tilde{x} = \lambda x_i + (1 - \lambda) x_j \\
@@ -63,7 +65,14 @@ $$
 P_{x_i, y_i} = \mathbb{E}_\lambda[(\delta_{\tilde{x}_i}(x), \delta_{\tilde{y}_i}(y))]
 $$
 
+Mixup is an interesting method to consider but it possesses some limitations :
+- **Small $\alpha$ issues :** With our setup, $\alpha \approx 1$ encourages $\tilde{x}$ to be perceptually different from $x$. Consequently, training and testing distribution will also grow appart from each other. When $\alpha \ll 1$, the mixup will produce samples close to the initial ones with sharp peaks of 0 and 1 for the value of $\lambda$. What is noticed after cross-validation of alpha is that the best values are $\alpha \approx 0.2$ which is very small. Consequently, the final sample effectively presents only a small perturbation is comparison to the original one while the vicinal distribution exploration space is much larger. We could say that Mixup does not allow to use the full potential of the vicinal distributions of the data.
+
+- **Model underconfidence :** When a neural network is trained with Mixup, it is only exposed to interpolated samples. Consequently, the model learns to predict smoothed labels which is the very root cause of its underconfidence. This results in a high predictive entropy for both ID and OOD samples. 
+
 ### 2. RegMixup in theory
+
+
 
 ### 3. RegMixup in practice (implementation)
 
