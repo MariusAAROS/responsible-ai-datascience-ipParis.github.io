@@ -11,7 +11,9 @@ Blog Authors: Marius Ortega
 Paper : [RegMixup](https://arxiv.org/abs/2206.14502) by Francesco Pinto, Harry Yang, Ser-Nam Lim, Philip H.S. Torr, Puneet K. Dokania
 
 ### Abstract
-In this blog post, we will present the paper "RegMixup: Regularizer for robust AI" by Francesco Pinto, Harry Yang, Ser-Nam Lim, Philip H.S. Torr, Puneet K. Dokania. This paper introduces a new regularizer called RegMixup, which is designed to improve the accuracy and out-of-distribution robustness of deep neural networks. The authors show that RegMixup can be used to improve the performance of state-of-the-art models on various datasets, including CIFAR-10, CIFAR-100, and ImageNet. The paper also provides an extensive empirical evaluation of RegMixup, demonstrating its effectiveness in improving the robustness of deep neural networks to out-of-distribution samples.
+In this blog post, we will present the paper "RegMixup: Regularizer for robust AI" by Francesco Pinto, Harry Yang, Ser-Nam Lim, Philip H.S. Torr, Puneet K. Dokania. This paper introduces a new regularizer called RegMixup, which is designed to improve the accuracy and out-of-distribution robustness of deep neural networks. The authors show that RegMixup can be used to improve the performance of state-of-the-art models on various datasets, including CIFAR-10, CIFAR-100, and ImageNet. The paper also provides an extensive empirical evaluation of RegMixup, demonstrating its effectiveness in improving the robustness of deep neural networks to out-of-distribution samples. 
+
+In this blong post, we will provide an overview of the paper, explain the theoretical background of RegMixup, and finally, perform a toy example to demonstrate how to use RegMixup with the torch-uncertainty library.
 
 ### Introduction
 
@@ -20,7 +22,7 @@ Most real-world machine algorithm applications are good when it comes to predict
 The question is how to improve the robustness of machine learning algorithms to OOD samples ?
 Many researchers have tried such as Liu et al. (2020a, 2020b), Wen et al. (2021), Lakshminarayanan et al. (2017). Even though they have shown some improvements, their approaches use expensive ensemble methods or propose non-trivial modifications of the neural network architecture. What if we could improve the robustness of deep neural networks with respect to OOD samples while utilizing much simpler and cost-effective methods?
 
-The first step toward the method presented in this blog is Mixup proposed by Zang and al (2018). This method is quite good when it comes to dealing with slight perturbations in the data distribution. However, Mixup has the tendency to emphasize difference in labels from very similar samples (high predictive entropy). This is not ideal for OOD samples as the model do not differentiate ID and OOD samples very well.
+The first step toward the method presented in this blog is Mixup, proposed by Zang and al (2018). This method is quite good when it comes to dealing with slight perturbations in the data distribution. However, Mixup has the tendency to emphasize difference in labels from very similar samples (high predictive entropy). This is not ideal for OOD samples as the model do not differentiate ID and OOD samples very well.
 
 RegMixup, adds a new layer to Mixup by using Mixup as a regularizer. From there, we will present the theoretical background of the paper, the implementation so as to easily use it in practice.
 
@@ -34,7 +36,7 @@ Empirical Risk Minimization is an inference principle which consists in finding 
 $$
 R_{emp}(\hat{f}) = \frac{1}{n} \sum_{i=1}^{n} L(\hat{f}(x_i), y_i) \tag{1}
 $$
-where $L$ is the loss function, $x_i$ is the input, $y_i$ is the label and $n$ is the number of samples in the training set. However, ERM contains a very strong assumption which is that $\hat{f} \approx f$ where $f$ is the true (and unknown) distribution for all points of the dataset. Thereby, if the testing set distribution different even slighly from the training set one, ERM is unable to explain or provide generalization. Vicinal Risk is a way to relax this assumption.
+where $L$ is the loss function, $x_i$ is the input, $y_i$ is the label and $n$ is the number of samples in the training set. However, ERM contains a very strong assumption which is that $\hat{f} \approx f$ where $f$ is the true (and unknown) distribution for all points of the dataset. Thereby, if the testing set distribution differs even slighly from the training set one, ERM is unable to explain or provide generalization. Vicinal Risk is a way to relax this assumption.
 
 #### 1.2. Vicinal Risk Minimization (VRM)
 
@@ -50,7 +52,7 @@ Consequently, each training point has its own distribution estimate. This is a w
 
 Mixup is a data augmentation technique that generates new samples by mixing pairs of training samples. By doing so, mixup regularizes models to favor simple linear behavior in-between training examples. Experimentally speaking, Mixup has been shown to improve the generalization of deep neural networks, increase their robustness to adversarial attacks, reduce the memorization of corrupt labels as well as stabilize the training of generative adversarial networks.
 
-In essence, Mixup can be though as a learning objective designed for robustness and accountability of the model. Now, let's see how Mixup works.
+In essence, Mixup can be thought as a learning objective designed for robustness and accountability of the model. Now, let's see how Mixup works.
 
 First, we take two samples $(x_i, y_i)$ and $(x_j, y_j)$ from the training set. Then, we generate a new sample $(\tilde{x}, \tilde{y})$ by taking a convex combination of the two samples with a mixup coefficient $\lambda \sim \text{Beta}(\alpha, \alpha)$ :
 
@@ -91,8 +93,8 @@ $$
 With $\eta \in \mathbb{R}_{+}^*$ being the hyperparameter controlling the importance of the vicinal cross entropy sub-loss and $p_\theta$ the activation function of the model parameterized by $\theta$. In the paper, the value of $\eta$ is set to 1 and its variation seem negligible. Consequently, we will not focus on it in this blog post.
 
 Such a model (equation 4) exhibits properties that lacked in Mixup : 
-- **Values of $\alpha$ and underconfidence :** As we explicitly add the empirical distribution to the vicinal one, the ERM term will encourage the model to predict the true labels of the training set while the VRM term, motivated by the interpolation factor $\lambda$ will explore the vicinal distribution space in the much more thorough way than what was possible with mixup. Consequently, the ERM term allows to better predict in-distribution samples while the VRM term with a larger $\alpha$ will allow to better predict OOD samples. This is a very interesting property as it allows to have a model that is both confident and accurate.
-- **Prediction entropy :** Through their experiments and observations, researchers found that a cross-validated value of $\alpha$ leads a maximum likelihood estimation having high entropy for ODD samples only. While Mixup demonstrated high entropy for both ID and OOD samples, RegMixup is able to differentiate between the two. This is an highly desirable properties indicating us that RegMixup acts as a regularizer in essense.
+- **Values of $\alpha$ and underconfidence :** As we explicitly add the empirical distribution to the vicinal one, the ERM term will encourage the model to predict the true labels of the training set while the VRM term, motivated by the interpolation factor $\lambda$, will explore the vicinal distribution space in a much more thorough way than what was possible with mixup. Consequently, the ERM term allows to better predict in-distribution samples while the VRM term with a larger $\alpha$ will allow to better predict OOD samples. This is a very interesting property as it allows to have a model that is both confident and accurate.
+- **Prediction entropy :** Through their experiments and observations, researchers found that a cross-validated value of $\alpha$ leads to a maximum likelihood estimation having high entropy for ODD samples only. While Mixup demonstrated high entropy for both ID and OOD samples, RegMixup is able to differentiate between the two. This is an highly desirable properties indicating us that RegMixup acts as a regularizer in essense.
 
 As a preliminary conclusion, RegMixup is a very powerful, cost-efficient and simple-to-implement regularizer that allows to improve the robustness and accuracy of deep neural networks for both in-distribution and out-of-distribution samples. In the next section, we will see how to use RegMixup in practice trough a toy example.
 
@@ -103,11 +105,11 @@ Now, our objective will be to demonstrate the effectiveness of RegMixup through 
 - A model trained with Mixup
 - A model trained with RegMixup
 
-To do so, we have to possibilities :
+To do so, we have two possibilities :
 - Use the official implementation of RegMixup available on [Francesco Pinto's GitHub](https://github.com/FrancescoPinto/RegMixup). 
 - Use the torch-uncertainty library which provides a simple and efficient way to use RegMixup. Note, the library is developed by researchers from ENSTA Paris and is available on [GitHub](https://github.com/ENSTA-U2IS-AI/torch-uncertainty).
 
-In this blog post, we will use the torch-uncertainty library as it is very simple to use and provides a very well implemented version of RegMixup.
+In this blog post, we will use the torch-uncertainty library as it is very simple to use and provides a very well-implemented version of RegMixup.
 
 #### 3.1. Installation
 
@@ -250,7 +252,7 @@ With corruption severity factor of 15, we obtain the following results :
 | mixup    | 0.698558 |   0.7558 | 0.338540 | 0.014760 | 0.709190 |
 | regmixup | 0.702599 |   0.7614 | 0.327945 | 0.008439 | 0.687550 |
 
-Here the results are much more unequivocal. As the severity factor increases, the baseline model drops in accuracy and entropy, mixup also drops in accuracy but increases in entropy and regmixup increases in accuracy and entropy. Here, the regmixup has the higher entropy as the model has higher entropy for OOD samples which are more frequent at this corruption level. Consequently, regmixup is more confident and accurate than the mixup model eventhough mixup is not fully underperforming. 
+Here the results are much more unequivocal. As the severity factor increases, the baseline model drops in accuracy and entropy, mixup also drops in accuracy but increases in entropy and regmixup increases in accuracy and entropy. Here, regmixup has the higher entropy as the model has higher entropy for OOD samples which are more frequent at this corruption level. Mixup shows a greater delta increase in entropy due to its higher predictive entropy tendency whether or not samples are OOD or ID. Consequently, regmixup is more confident and accurate than the mixup model eventhough mixup is not fully underperforming. 
 
 ### 4. Conclusion
 
