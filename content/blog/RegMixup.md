@@ -98,7 +98,160 @@ As a preliminary conclusion, RegMixup is a very powerful, cost-efficient and sim
 
 ### 3. RegMixup in practice (implementation)
 
+Now, our objective will be to demonstrate the effectiveness of RegMixup through a very simple example. We will use the CIFAR-10-C dataset (corrupted version of CIFAR-10) and a standard ResNet-18 model. We will compare performances of 3 models : 
+- A baseline model trained with ERM
+- A model trained with Mixup
+- A model trained with RegMixup
 
+To do so, we have to possibilities :
+- Use the official implementation of RegMixup available on [Francesco Pinto's GitHub](https://github.com/FrancescoPinto/RegMixup). 
+- Use the torch-uncertainty library which provides a simple and efficient way to use RegMixup. Note, the library is developed by researchers from ENSTA Paris and is available on [GitHub](https://github.com/ENSTA-U2IS-AI/torch-uncertainty).
+
+In this blog post, we will use the torch-uncertainty library as it is very simple to use and provides a very well implemented version of RegMixup.
+
+#### 3.1. Installation
+
+First, we need to install the torch-uncertainty library. To do so, we can use pip :
+
+```bash
+pip install torch-uncertainty
+```
+
+Note: If you use a gpu, torch-uncertainty will automatically install a cpu version of torch and torchvision, you can compile the following lines to install the gpu version of torch and torchvision (took from [PyTorch website](https://pytorch.org/get-started/locally/)) :
+
+```bash 
+pip unistall torch torchvision
+pip3 install torch torchvision --index-url https://download.pytorch.org/whl/cu118
+```
+
+To check if the installation was successful, you can run the following code, it should return True if you have a gpu and False if you don't have one :
+
+```python
+import torch
+print(torch.cuda.is_available())
+```
+
+#### 3.2. Training the models with torch-uncertainty
+
+Now that we have installed torch-uncertainty, we can train the models. First, we need to import the necessary libraries :
+
+```python
+from torch_uncertainty import cli_main, init_args
+from torch_uncertainty.baselines.classification import ResNet
+from torch_uncertainty.optimization_procedures import optim_cifar10_resnet18
+from torch_uncertainty.datamodules import CIFAR10DataModule
+from torchvision.datasets import CIFAR10
+from torchvision import transforms
+from torch.nn import CrossEntropyLoss
+import torch
+
+import os
+from pathlib import Path
+from cli_test_helpers import ArgvContext
+```
+
+Then, we can define the 3 models we discussed earlier :
+
+```python
+baseline = ResNet(num_classes=10,
+                loss=CrossEntropyLoss,
+                optimization_procedure=optim_cifar10_resnet18,
+                version="std",
+                in_channels=3, 
+                arch=18).cuda()
+
+mixup = ResNet(num_classes=10,
+                loss=CrossEntropyLoss,
+                optimization_procedure=optim_cifar10_resnet18,
+                version="std",
+                in_channels=3, 
+                arch=18, 
+                mixup=True,
+                mixup_alpha=0.2).cuda()
+
+regmixup = ResNet(num_classes=10,
+                loss=CrossEntropyLoss,
+                optimization_procedure=optim_cifar10_resnet18,
+                version="std",
+                in_channels=3,
+                arch=18,
+                reg_mixup=True,
+                mixup_alpha=15).cuda()
+```
+
+Before training the models, we need to define important arguments such as training parameters (epochs, estimators, etc.) and the datamodule. We can do so with the following code:
+
+```python
+
+root = Path(os.path.abspath(""))
+
+# We mock the arguments for the trainer
+with ArgvContext(
+    "file.py",
+    "--max_epochs",
+    "20",
+    "--enable_progress_bar",
+    "False",
+    "--num_estimators",
+    "8"
+):
+    args = init_args(network=ResNet, datamodule=CIFAR10DataModule)
+
+net_name = "logs/reset18-cifar10"
+
+# datamodule
+args.root = str(root / "data")
+dm = CIFAR10DataModule(**vars(args))
+```
+
+Finally, we can train the models using the `cli_main` function from torch-uncertainty :
+
+```python
+results_baseline = cli_main(baseline, dm, root, net_name, args=args)
+results_mixup = cli_main(mixup, dm, root, net_name, args=args)
+results_regmixup = cli_main(regmixup, dm, root, net_name, args=args)
+```
+
+Note: If you have a gpu, you can make a slight modification to the code to use it :
+1. Click on `cli_main` and press `F12` to go to the function definition.
+2. Go to line 222 and replace the trainer definition by the following one: 
+```python
+# trainer
+    trainer = pl.Trainer.from_argparse_args(
+        args,
+        accelerator="gpu",
+        devices=1,
+        callbacks=callbacks,
+        logger=tb_logger,
+        deterministic=(args.seed is not None),
+        inference_mode=not (args.opt_temp_scaling or args.val_temp_scaling),
+    )
+```
+3. Save the file and you are all set.
+
+#### 3.3. Results
+
+So as to compare the performances of the 3 models, we use two corrupted versions of Cifar-10-C. The first version has a corruption severity factor of 5 (slight data corruption) and the second one has a corruption severity factor of 15 (severe data corruption). Our study contains 5 metrics : entropy, accuracy, brier score, expected calibration error (ECE) and negative log-likelihood (NLL). In our explanation, we will focus on the accuracy and entropy to keep it simple.
+
+With corruption severity factor of 5, we obtain the following results :
+
+|          | entropy  | accuracy |  brier   |   ece    |   nll    |
+|----------|----------|----------|----------|----------|----------|
+| baseline | 0.656294 |   0.7480 | 0.349862 | 0.032466 | 0.729336 |
+| mixup    | 0.640811 |   0.7578 | 0.335403 | 0.024429 | 0.703844 |
+| regmixup | 0.676174 |   0.7564 | 0.340233 | 0.023135 | 0.711405 |
+
+First of all, we can see that the accuracy is quite similar for the 3 models. This makes sense as the corruption severity factor is quite low, thus cifar-10-c is not very different from the original cifar-10. However, we can see that the entropy of the regmixup model is higher than the one of the mixup model. This is symptomatic of mixup's underconfidence. As stated previously, given the low corruption severity factor of cifar-10-c, the underconfidence of mixup does not impact its performances in a visible manner.
+
+With corruption severity factor of 15, we obtain the following results :
+|          | entropy  | accuracy |  brier   |   ece    |   nll    |
+|----------|----------|----------|----------|----------|----------|
+| baseline | 0.615607 |   0.7402 | 0.358522 | 0.048414 | 0.750933 |
+| mixup    | 0.698558 |   0.7558 | 0.338540 | 0.014760 | 0.709190 |
+| regmixup | 0.702599 |   0.7614 | 0.327945 | 0.008439 | 0.687550 |
+
+Here the results are much more unequivocal. As the severity factor increases, the baseline model drops in accuracy and entropy, mixup also drops in accuracy but increases in entropy and regmixup increases in accuracy and entropy. Here, the regmixup has the higher entropy as the model has higher entropy for OOD samples which are more frequent at this corruption level. Consequently, regmixup is more confident and accurate than the mixup model eventhough mixup is not fully underperforming. 
 
 ### 4. Conclusion
 
+As a conclusion, we have seen that RegMixup is a powerful method to regularize deep neural networks. Despite being very simple and cost-effective, it is important to specify that the paper does not provide a theoretical explanation of the method. These experimental grounds are very promising but it appears important to stay cautious while utilizing RegMixup.
